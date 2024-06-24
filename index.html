@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Flip and Remember Game</title>
+    <style>
+      body {
+        font-family: "Comic Sans MS", cursive, sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect width="100%" height="100%" fill="%23a2d2ff"/><circle cx="50" cy="50" r="30" fill="%23ffd166"/><path d="M70 200 Q 100 150 130 200 T 190 200" stroke="%23caffbf" stroke-width="8" fill="none"/><rect x="200" y="50" width="50" height="50" fill="%23ffadad" transform="rotate(45 225 75)"/><polygon points="250,250 275,200 300,250" fill="%23ffc6ff"/></svg>');
+        background-repeat: repeat;
+        background-size: 300px 300px;
+      }
+      .container {
+        display: flex;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .sidebar {
+        width: 250px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 20px;
+        border-radius: 15px;
+        margin-right: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .main-content {
+        flex-grow: 1;
+      }
+      h1 {
+        color: #4a4a4a;
+        text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.7);
+        font-size: 2.5em;
+        background-color: rgba(255, 255, 255, 0.7);
+        padding: 10px 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-top: 0;
+      }
+      .game-container {
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .game-board {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        perspective: 1000px;
+        margin-top: 20px;
+      }
+      .card {
+        width: 80px;
+        height: 80px;
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.6s;
+        cursor: pointer;
+      }
+      .card-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+      .card-front {
+        background-color: #3498db;
+        color: white;
+        transform: rotateY(180deg);
+      }
+      .card-back {
+        background-color: #f1c40f;
+        color: #2c3e50;
+      }
+      .card.flipped {
+        transform: rotateY(180deg);
+      }
+      #gameStats,
+      #themeSelector {
+        margin: 20px 0;
+        font-size: 1.2em;
+        color: #2c3e50;
+        text-align: center;
+      }
+      #restartButton,
+      #themeSelect {
+        margin: 10px;
+        padding: 10px 20px;
+        font-size: 1em;
+        background-color: #2ecc71;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      #restartButton:hover,
+      #themeSelect:hover {
+        background-color: #27ae60;
+      }
+      #gameHistory {
+        margin-top: 20px;
+      }
+      #gameHistory h3 {
+        text-align: center;
+        color: #4a4a4a;
+      }
+      #gameHistory p {
+        margin: 5px 0;
+        font-size: 0.9em;
+      }
+      @keyframes celebrate {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .celebrate {
+        animation: celebrate 0.5s ease-in-out 3;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <aside class="sidebar">
+        <div id="gameHistory">
+          <h3>Game History</h3>
+          <!-- Game history will be populated here -->
+        </div>
+      </aside>
+      <main class="main-content">
+        <h1>3D Flip and Remember Game</h1>
+        <div class="game-container">
+          <div id="themeSelector">
+            <label for="themeSelect">Choose a theme: </label>
+            <select id="themeSelect">
+              <option value="animals">Animals</option>
+              <option value="places">Places</option>
+              <option value="birds">Birds</option>
+              <option value="countries">Countries</option>
+              <option value="fruits">Fruits</option>
+              <option value="flowers">Flowers</option>
+              <option value="cars">Cars</option>
+              <option value="bikes">Bikes</option>
+              <option value="faces">Human Faces</option>
+              <option value="science">Science</option>
+              <option value="planets">Planets</option>
+            </select>
+          </div>
+          <div class="game-board" id="gameBoard"></div>
+          <div id="gameStats">Moves: <span id="moveCount">0</span></div>
+          <button id="restartButton">Restart Game</button>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const themes = {
+        animals: [
+          "🐶",
+          "🐱",
+          "🐭",
+          "🐹",
+          "🐰",
+          "🦊",
+          "🐻",
+          "🐼",
+          "🐨",
+          "🐯",
+          "🦁",
+          "🐮",
+          "🐷",
+          "🐸",
+          "🐵",
+          "🐔",
+        ],
+        places: [
+          "🏠",
+          "🏢",
+          "🏰",
+          "⛺",
+          "🏕️",
+          "🏖️",
+          "🏜️",
+          "🏝️",
+          "🏞️",
+          "🏔️",
+          "🌋",
+          "🗻",
+          "🏙️",
+          "🌆",
+          "🌇",
+          "🌃",
+        ],
+        birds: [
+          "🦅",
+          "🦆",
+          "🦉",
+          "🦇",
+          "🐦",
+          "🐧",
+          "🐤",
+          "🐣",
+          "🐥",
+          "🦜",
+          "🦢",
+          "🦚",
+          "🦃",
+          "🐓",
+          "🦅",
+          "🕊️",
+        ],
+        countries: [
+          "🇺🇸",
+          "🇬🇧",
+          "🇫🇷",
+          "🇩🇪",
+          "🇮🇹",
+          "🇯🇵",
+          "🇨🇳",
+          "🇮🇳",
+          "🇧🇷",
+          "🇷🇺",
+          "🇨🇦",
+          "🇦🇺",
+          "🇲🇽",
+          "🇪🇸",
+          "🇰🇷",
+          "🇿🇦",
+        ],
+        fruits: [
+          "🍎",
+          "🍐",
+          "🍊",
+          "🍋",
+          "🍌",
+          "🍉",
+          "🍇",
+          "🍓",
+          "🍒",
+          "🍑",
+          "🥭",
+          "🍍",
+          "🥥",
+          "🥝",
+          "🍅",
+          "🥑",
+        ],
+        flowers: [
+          "🌸",
+          "🌺",
+          "🌼",
+          "🌻",
+          "🌹",
+          "🥀",
+          "🌷",
+          "💐",
+          "🌾",
+          "🌿",
+          "🍀",
+          "🍁",
+          "🍂",
+          "🍃",
+          "🌵",
+          "🌴",
+        ],
+        cars: [
+          "🚗",
+          "🚕",
+          "🚙",
+          "🚌",
+          "🚎",
+          "🏎️",
+          "🚓",
+          "🚑",
+          "🚒",
+          "🚐",
+          "🚚",
+          "🚛",
+          "🚜",
+          "🚲",
+          "🛴",
+          "🚲",
+        ],
+        bikes: [
+          "🚲",
+          "🛴",
+          "🛵",
+          "🏍️",
+          "🚴",
+          "🚵",
+          "🚳",
+          "🦼",
+          "🦽",
+          "🛹",
+          "🛼",
+          "🚐",
+          "🚛",
+          "🚜",
+          "🚲",
+          "🛴",
+        ],
+        faces: [
+          "😀",
+          "😃",
+          "😄",
+          "😁",
+          "😆",
+          "😅",
+          "😂",
+          "🤣",
+          "😊",
+          "😇",
+          "🙂",
+          "🙃",
+          "😉",
+          "😌",
+          "😍",
+          "🥰",
+        ],
+        science: [
+          "⚗️",
+          "🔬",
+          "🔭",
+          "📡",
+          "💉",
+          "🧪",
+          "🧫",
+          "🧬",
+          "🔋",
+          "🔌",
+          "💡",
+          "🔋",
+          "🔌",
+          "💡",
+          "🧰",
+          "🔧",
+        ],
+        planets: [
+          "🌎",
+          "🌍",
+          "🌏",
+          "🌕",
+          "🌖",
+          "🌗",
+          "🌘",
+          "🌑",
+          "🌒",
+          "🌓",
+          "🌔",
+          "☀️",
+          "⭐",
+          "🌟",
+          "✨",
+          "💫",
+        ],
+      };
+
+      const gameBoard = document.getElementById("gameBoard");
+      const moveCountElement = document.getElementById("moveCount");
+      const restartButton = document.getElementById("restartButton");
+      const themeSelect = document.getElementById("themeSelect");
+      const gameHistoryElement = document.getElementById("gameHistory");
+      let currentTheme = "animals";
+      let flippedCards = [];
+      let matchedPairs = 0;
+      let moveCount = 0;
+      let gameHistory = [];
+
+      function createCard(content) {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.innerHTML = `
+                <div class="card-face card-front">${content}</div>
+                <div class="card-face card-back">?</div>
+            `;
+        card.addEventListener("click", () => flipCard(card, content));
+        return card;
+      }
+
+      function flipCard(card, content) {
+        if (flippedCards.length < 2 && !card.classList.contains("flipped")) {
+          card.classList.add("flipped");
+          flippedCards.push(card);
+
+          if (flippedCards.length === 2) {
+            moveCount++;
+            moveCountElement.textContent = moveCount;
+            setTimeout(checkMatch, 1000);
+          }
+        }
+      }
+
+      function checkMatch() {
+        const [card1, card2] = flippedCards;
+        const content1 = card1.querySelector(".card-front").innerHTML;
+        const content2 = card2.querySelector(".card-front").innerHTML;
+
+        if (content1 === content2) {
+          matchedPairs++;
+          if (matchedPairs === 8) {
+            endGame();
+          }
+        } else {
+          card1.classList.remove("flipped");
+          card2.classList.remove("flipped");
+        }
+        flippedCards = [];
+      }
+
+      function endGame() {
+        gameHistory.push({ theme: currentTheme, moves: moveCount });
+        updateGameHistory();
+        checkPerformance();
+        setTimeout(() => {
+          alert(`Congratulations! You won the game in ${moveCount} moves!`);
+        }, 500);
+      }
+
+      function updateGameHistory() {
+        let historyHTML = "<h3>Game History</h3>";
+        gameHistory
+          .slice(-10)
+          .reverse()
+          .forEach((game, index) => {
+            historyHTML += `<p>Game ${gameHistory.length - index}: ${
+              game.theme
+            } - ${game.moves} moves</p>`;
+          });
+        gameHistoryElement.innerHTML = historyHTML;
+      }
+
+      function checkPerformance() {
+        const currentGame = gameHistory[gameHistory.length - 1];
+        const previousGames = gameHistory
+          .slice(0, -1)
+          .filter((game) => game.theme === currentGame.theme);
+        if (previousGames.length > 0) {
+          const averageMoves =
+            previousGames.reduce((sum, game) => sum + game.moves, 0) /
+            previousGames.length;
+          if (currentGame.moves < averageMoves) {
+            celebratePerformance();
+          }
+        }
+      }
+
+      function celebratePerformance() {
+        gameBoard.classList.add("celebrate");
+        setTimeout(() => {
+          gameBoard.classList.remove("celebrate");
+        }, 1500);
+      }
+
+      function initializeGame() {
+        gameBoard.innerHTML = "";
+        const themeContent = themes[currentTheme];
+        const gameContent = [
+          ...themeContent.slice(0, 8),
+          ...themeContent.slice(0, 8),
+        ];
+        gameContent.sort(() => Math.random() - 0.5);
+
+        gameContent.forEach((content) => {
+          const card = createCard(content);
+          gameBoard.appendChild(card);
+        });
+
+        matchedPairs = 0;
+        moveCount = 0;
+        moveCountElement.textContent = moveCount;
+      }
+
+      restartButton.addEventListener("click", initializeGame);
+      themeSelect.addEventListener("change", (e) => {
+        currentTheme = e.target.value;
+        initializeGame();
+      });
+
+      initializeGame();
+      updateGameHistory();
+    </script>
+  </body>
+</html>
